@@ -1,4 +1,13 @@
-FROM janeczku/alpine-kubernetes:3.2
+FROM alpine:3.5
+
+ARG S6_VERSION=v1.17.1.1
+
+RUN apk add --update wget \
+	&& wget https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-amd64.tar.gz --no-check-certificate --quiet -O /tmp/s6-overlay.tar.gz \
+	&& tar xvfz /tmp/s6-overlay.tar.gz -C / \
+	&& rm -f /tmp/s6-overlay.tar.gz \
+	&& apk del wget \
+	&& rm -rf /var/cache/apk/*
 
 RUN apk --update add \
     rsyslog \
@@ -11,7 +20,7 @@ RUN apk --update add \
     --update-cache \
     --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
 
-ENV TSDB_VERSION 2.2.0
+ENV TSDB_VERSION 2.3.0
 ENV HBASE_VERSION 1.1.3
 ENV JAVA_HOME /usr/lib/jvm/java-1.7-openjdk
 ENV PATH $PATH:/usr/lib/jvm/java-1.7-openjdk/bin/
@@ -63,6 +72,8 @@ RUN for i in /opt/bin/start_hbase.sh /opt/bin/start_opentsdb.sh /opt/bin/create_
         sed -i "s#::JAVA_HOME::#$JAVA_HOME#g; s#::PATH::#$PATH#g; s#::TSDB_VERSION::#$TSDB_VERSION#g;" $i; \
     done
 
+# create the opentsdb expected paths
+RUN mkdir -p /usr/share/opentsdb/plugins /tmp/opentsdb /usr/share/opentsdb/static
 
 RUN mkdir -p /etc/services.d/hbase /etc/services.d/tsdb
 RUN ln -s /opt/bin/start_hbase.sh /etc/services.d/hbase/run
@@ -71,3 +82,5 @@ RUN ln -s /opt/bin/start_opentsdb.sh /etc/services.d/tsdb/run
 EXPOSE 60000 60010 60030 4242 16010
 
 VOLUME ["/data/hbase", "/tmp"]
+
+ENTRYPOINT ["/init"]
